@@ -2,11 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /code
 
-# Dependencias del sistema para pymysql / cryptography
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    default-libmysqlclient-dev gcc pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
+# pymysql es un driver 100% Python: no requiere gcc ni libmysqlclient-dev,
+# por eso no se instala nada por apt-get (evita depender de mirrors de Debian).
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

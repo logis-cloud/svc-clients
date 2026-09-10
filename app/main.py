@@ -1,9 +1,37 @@
+import os
+import time
 from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
 from .database import engine, get_db, Base
+
+
+def esperar_base_de_datos(intentos: int = 15, espera_segundos: int = 2):
+    """
+    La primera vez que se levanta el contenedor de MySQL, este tarda unos
+    segundos en inicializar sus archivos internos antes de aceptar conexiones.
+    Aquí reintentamos con backoff en vez de fallar de inmediato.
+    """
+    for intento in range(1, intentos + 1):
+        try:
+            conexion = engine.connect()
+            conexion.close()
+            print("Conexión a la base de datos establecida.")
+            return
+        except OperationalError:
+            print(
+                f"Base de datos aún no disponible (intento {intento}/{intentos}). "
+                f"Reintentando en {espera_segundos}s..."
+            )
+            time.sleep(espera_segundos)
+    raise RuntimeError("No se pudo conectar a la base de datos tras varios intentos.")
+
+
+esperar_base_de_datos()
 
 # Crea las tablas si no existen (en producción se recomienda usar migraciones/Alembic)
 Base.metadata.create_all(bind=engine)
@@ -17,6 +45,23 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",       # Swagger UI
     redoc_url="/redoc",
+)
+
+# CORS: permite que el frontend (servido desde otro origen: localhost:5173,
+# AWS Amplify, etc.) pueda llamar a esta API desde el navegador.
+# CORS_ALLOWED_ORIGINS puede sobreescribirse por variable de entorno con una
+# lista separada por comas, p.ej.: "https://main.xxxx.amplifyapp.com,http://localhost:5173"
+origenes_permitidos = os.getenv("CORS_ALLOWED_ORIGINS", "*")
+origenes = ["*"] if origenes_permitidos == "*" else [
+    o.strip() for o in origenes_permitidos.split(",")
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origenes,
+    allow_credentials=False if origenes == ["*"] else True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
