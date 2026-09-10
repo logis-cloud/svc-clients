@@ -1,13 +1,11 @@
 from typing import Optional
-
 from fastapi import FastAPI, Depends, HTTPException, Query, status
-from fastapi.middleware.cors import CORSMiddleware
-
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
 from .database import engine, get_db, Base
 
+# Crea las tablas si no existen (en producción se recomienda usar migraciones/Alembic)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -17,17 +15,8 @@ app = FastAPI(
         "Parte del sistema distribuido de Logística y Entregas (CS2032 - Cloud Computing)."
     ),
     version="1.0.0",
-    docs_url="/docs",
+    docs_url="/docs",       # Swagger UI
     redoc_url="/redoc",
-)
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 
