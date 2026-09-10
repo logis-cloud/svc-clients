@@ -15,7 +15,7 @@ from sqlalchemy import text
 from app.database import engine, SessionLocal, Base
 from app import models
 
-fake = Faker("es_ES")  # datos con formato/nombres en español (Perú)
+fake = Faker("es_PE")  # datos con formato/nombres en español (Perú)
 
 TOTAL_CLIENTES = 25_000
 BATCH_SIZE = 1_000

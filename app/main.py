@@ -1,37 +1,13 @@
-import time
 from typing import Optional
+
 from fastapi import FastAPI, Depends, HTTPException, Query, status
-from sqlalchemy.exc import OperationalError
+from fastapi.middleware.cors import CORSMiddleware
+
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
 from .database import engine, get_db, Base
 
-
-def esperar_base_de_datos(intentos: int = 15, espera_segundos: int = 2):
-    """
-    La primera vez que se levanta el contenedor de MySQL, este tarda unos
-    segundos en inicializar sus archivos internos antes de aceptar conexiones.
-    Aquí reintentamos con backoff en vez de fallar de inmediato.
-    """
-    for intento in range(1, intentos + 1):
-        try:
-            conexion = engine.connect()
-            conexion.close()
-            print("Conexión a la base de datos establecida.")
-            return
-        except OperationalError:
-            print(
-                f"Base de datos aún no disponible (intento {intento}/{intentos}). "
-                f"Reintentando en {espera_segundos}s..."
-            )
-            time.sleep(espera_segundos)
-    raise RuntimeError("No se pudo conectar a la base de datos tras varios intentos.")
-
-
-esperar_base_de_datos()
-
-# Crea las tablas si no existen (en producción se recomienda usar migraciones/Alembic)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -41,8 +17,17 @@ app = FastAPI(
         "Parte del sistema distribuido de Logística y Entregas (CS2032 - Cloud Computing)."
     ),
     version="1.0.0",
-    docs_url="/docs",       # Swagger UI
+    docs_url="/docs",
     redoc_url="/redoc",
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
