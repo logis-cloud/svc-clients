@@ -4,6 +4,14 @@ API REST (Python + FastAPI) para gestionar clientes y sus direcciones de entrega
 Es uno de los 3 microservicios "con base de datos propia" del proyecto
 (los otros dos son Vehículos [Java/PostgreSQL] y Envíos [Node.js/MongoDB]).
 
+Este microservicio **no genera ni carga datos ficticios**. Es una API REST
+estándar: recibe requests, valida con Pydantic, y opera contra su base de
+datos MySQL a través de SQLAlchemy. La carga masiva de datos de prueba
+(≥20,000 registros exigidos por la rúbrica) es responsabilidad de una
+herramienta externa (`seed-tool/`) que corre en la VM de bases de datos
+(VM3), conectándose directamente a cada motor (MySQL, PostgreSQL, MongoDB)
+por su IP privada — no del contenedor del microservicio.
+
 ## Diagrama Entidad/Relación (MySQL)
 
 ```
@@ -51,16 +59,17 @@ docker compose up --build
 
 ## Cargar datos ficticios (≥20,000 registros)
 
-Una vez que el contenedor `ms-clientes` esté corriendo:
+**No se hace desde este microservicio.** La carga masiva de datos de prueba
+se ejecuta con la herramienta externa `seed-tool/`, ubicada fuera de este
+repositorio, que corre en (o contra) la VM de bases de datos (VM3) y se
+conecta directamente a `mysql-clientes` — así como a PostgreSQL (Vehículos)
+y MongoDB (Envíos) — por IP privada, sin pasar por la API de ningún
+microservicio. Ver el README de `seed-tool/` para las instrucciones de
+ejecución.
 
-```bash
-docker compose exec ms-clientes python seed_data.py
-```
-
-Esto inserta **25,000 clientes** y entre **30,000 y 50,000 direcciones**
-usando `Faker` y `bulk_insert_mappings` para que sea rápido (ideal para
-que luego el contenedor de ingesta del módulo de Data Science los extraiga
-con estrategia *pull* hacia S3).
+Este microservicio se mantiene como una API estándar, sin dependencias de
+generación de datos falsos ni endpoints/scripts de seeding en su código
+fuente ni en su imagen Docker.
 
 ## Mapeo a la arquitectura de producción pedida en el enunciado
 
