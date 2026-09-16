@@ -37,7 +37,7 @@ def esperar_base_de_datos(intentos: int = 15, espera_segundos: int = 2):
                 f"Reintentando en {espera_segundos}s..."
             )
             time.sleep(espera_segundos)
-            except Exception as e:
+        except Exception as e:
             print(
                 f"La tabla 'clientes' no existe todavía (intento {intento}/{intentos}). "
                 f"¿Corrió 01_schema_mysql.sql en vm-db? Detalle: {e}"
