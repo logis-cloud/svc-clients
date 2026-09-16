@@ -7,7 +7,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
-from .database import engine, get_db, Base
+from .database import engine, get_db
 
 
 def esperar_base_de_datos(intentos: int = 15, espera_segundos: int = 2):
@@ -15,12 +15,21 @@ def esperar_base_de_datos(intentos: int = 15, espera_segundos: int = 2):
     La primera vez que se levanta el contenedor de MySQL, este tarda unos
     segundos en inicializar sus archivos internos antes de aceptar conexiones.
     Aquí reintentamos con backoff en vez de fallar de inmediato.
+
+    Además de esperar la conexión, valida que la tabla 'clientes' ya exista:
+    si no existe, significa que el script 01_schema_mysql.sql de vm-db aún
+    no corrió (o corrió contra otra base). En vez de tapar el problema
+    creando el schema desde acá (como hacía create_all), fallamos fuerte
+    para que el error sea visible de inmediato.
     """
+    from sqlalchemy import text
+
     for intento in range(1, intentos + 1):
         try:
             conexion = engine.connect()
+            conexion.execute(text("SELECT 1 FROM clientes LIMIT 1"))
             conexion.close()
-            print("Conexión a la base de datos establecida.")
+            print("Conexión a la base de datos establecida y schema verificado.")
             return
         except OperationalError:
             print(
@@ -28,13 +37,16 @@ def esperar_base_de_datos(intentos: int = 15, espera_segundos: int = 2):
                 f"Reintentando en {espera_segundos}s..."
             )
             time.sleep(espera_segundos)
+            except Exception as e:
+            print(
+                f"La tabla 'clientes' no existe todavía (intento {intento}/{intentos}). "
+                f"¿Corrió 01_schema_mysql.sql en vm-db? Detalle: {e}"
+            )
+            time.sleep(espera_segundos)
     raise RuntimeError("No se pudo conectar a la base de datos tras varios intentos.")
 
 
 esperar_base_de_datos()
-
-# Crea las tablas si no existen (en producción se recomienda usar migraciones/Alembic)
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Microservicio de Clientes - Logística y Entregas",
